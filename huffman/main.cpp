@@ -21,6 +21,10 @@
 #define max 100
 #define ascii 128
 using namespace std;
+typedef struct {
+    char bits[ascii+1];
+} code_node;
+typedef code_node huffmancode[ascii];
 typedef int datatype;// change type here
 //binary tree defined below
 struct node{
@@ -37,6 +41,13 @@ void ind(int inorder[],int n)
     }
 }
 //level order traversal
+typedef struct{
+    int weight;
+    int lchild;
+    int rchild;
+    int parent;
+}huff_node;
+typedef huff_node HuffmanT[2*ascii-1];
 void level_order(btree root)
 {
     btree Q[max],q;//queue
@@ -69,8 +80,8 @@ btree inorder_preorder_build(int pre[],int n, int offset){
 }
 void build_in_pre_test()
 {
-    int preorder[] = {7,10,4,3,1,2,8,11};
-    int inorder[] = {4,10,3,1,7,11,8,2};
+    int preorder[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17};
+    int inorder[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17};
     int n = sizeof(inorder)/sizeof(inorder[0]);//树的节点数
     int offset = 0;//子树开始的位置
     ind(inorder, n);
@@ -92,8 +103,8 @@ btree inorder_postorder_build(int post[],int n,int offset)
 }
 void build_in_post_test()
 {
-    int postorder[] = {4,1,3,10,11,8,2,7};
-    int inorder[] = {4,10,3,1,7,11,8,2};
+    int postorder[] = {17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1};
+    int inorder[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17};
     int n = sizeof(inorder)/sizeof(inorder[0]);//树的节点数
     int offset = 0;//子树开始的位置
     ind(inorder, n);
@@ -111,11 +122,11 @@ void build_in_post_test()
  4.计算哈夫曼编码文件的压缩率；
  5.将哈夫曼编码文件译码为文本文件，并与原文件进行比较。
  */
-void readtxt()
+void readtxt(int frequency[])
 {
     ifstream in("test.txt");
     char c;
-    int frequency[ascii] = {0};
+    
     if (in.fail()) {
         cout << "Could not find file, please check"<<endl;
     }
@@ -126,19 +137,131 @@ void readtxt()
     //print frequency
     /*
      for (int i = 0; i < ascii; i++) {
-        printf("%c",i);
-        cout <<":"<< count[i]<<endl;
-    }
+     printf("%c",i);
+     cout <<":"<< count[i]<<endl;
+     }
      */
+}
+void huffcreate(HuffmanT T,int fre[])
+{
+    int p1,p2,min1,min2;
+    for (int i = 0; i < ascii*2-1; i++) {//initialize
+        T[i].lchild = -1;
+        T[i].rchild = -1;
+        T[i].parent = -1;
+    }
+    for (int i = 0; i < ascii; i++) {
+        T[i].weight = fre[i];
+        //input weight
+    }
+    //merge * n-1 times
+    for (int i = ascii; i < 2*ascii -1; i++) {
+        //select min between 『0』 and 『i-1』
+        p1 = 0;
+        p2 = 0;
+        min1 = 99999999, min2 = 99999999;
+        for (int j = 0; j < i; j++) {
+            if (T[j].parent == -1) {
+                min1 = T[j].weight;
+                p1 = j;
+                for (int k = j+1; k < i; k++) {
+                    if (T[k].parent == -1) {
+                        min2 = T[k].weight;
+                        p2 = k;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        for (int j = 0; j < i; j++) {
+            if (T[j].parent == -1 && T[j].weight <= min1 && j != p1) {
+                min2 = min1;
+                p2 = p1;
+                min1 = T[j].weight;
+                p1 = j;
+            }
+        }
+        T[p1].parent = T[p2].parent = i;
+        T[i].lchild = p1;
+        T[i].rchild = p2;
+        T[i].weight = T[p1].weight + T[p2].weight;
+    }
+}
+void char_set_huff_encode(HuffmanT T,huffmancode H)
+{
+    int c, p , i;
+    char cd[ascii+1];
+    int start;
+    cd[ascii] = '\0';
+    for (i = 0; i < ascii; i++) {
+        start = ascii;
+        c = i;
+        while ((p = T[c].parent) >= 0) {
+            cd[--start] = (T[p].lchild == c)?'0':'1';
+            c = p;
+        }
+        strcpy(H[i].bits, &cd[start]);
+    }
+}
+void huff_coding(huffmancode H)
+{
+    ifstream in("test.txt");
+    ofstream out("out.txt");
+    char c;
+    if (in.fail()) {
+        cout << "Could not find test.txt, please check"<<endl;
+    }
+    if (out.fail()) {
+        cout << "Could not find out.txt, please check"<<endl;
+    }
+    while (in.get(c)) {
+        out << H[c].bits;
+    }
+    in.close();
+    out.close();
+}
+void decode(HuffmanT T, int n)
+{
+    ifstream de("out.txt");
+    ofstream deo("decode.txt");
+    char c;
+    char temp;
+    int x;
+    if (de.fail()) {
+        cout << "Could not find out.txt, please check"<<endl;
+    }
+    x = n;
+    while (de.get(c)) {
+        if (c == '0') {
+            x = T[x].lchild;
+        }
+        else if (c == '1') {
+            x = T[x].rchild;
+        }
+        if (T[x].lchild == -1||T[x].rchild == -1) {
+            temp = x;
+            deo << temp;
+            x = n;
+        }
+    }
+    de.close();
+    deo.close();
 }
 void huffman_test()
 {
-    readtxt();
+    
+    int frequency[ascii] = {0};
+    readtxt(frequency);
+    HuffmanT T;
+    huffmancode H;
+    huffcreate(T,frequency);
+    char_set_huff_encode(T, H);
+    huff_coding(H);
+    decode(T, ascii * 2 -2);
+    return;
 }
 int main(int argc, const char * argv[]) {
-
-    // insert code here...
-    std::cout << "Hello, World!\n";
     build_in_pre_test();
     build_in_post_test();
     huffman_test();
